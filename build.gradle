@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+    id 'eclipse'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(8)
+
+repositories {
+    ivy {
+        url 'https://github.com/'
+
+        patternLayout {
+            artifact '[organisation]/[module]/releases/download/v[revision]/[module]-[revision].[ext]'
+        }
+
+        metadataSources { artifact() }
+    }
+}
+
+dependencies {
+    implementation 'meldexun:MemoryUtil:1.1.0@jar'
+}
+
+jar {
+    archiveBaseName = projectName
+    archiveVersion = projectVersion
+
+    from rootProject.file('LICENSE')
+
+    manifest.attributes([
+        'Built-By': projectAuthor,
+        'Specification-Title': projectName,
+        'Specification-Version': projectVersion,
+        'Specification-Vendor': projectAuthor,
+        'Implementation-Title': projectName,
+        'Implementation-Version': projectVersion,
+        'Implementation-Vendor': projectAuthor,
+        'Implementation-Timestamp': new Date().format("yyyy-MM-dd HH:mm:ss")
+    ])
+}

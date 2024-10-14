@@ -106,7 +106,7 @@ class PNGChunkReader extends FilterInputStream {
 			throw new IllegalStateException();
 		}
 		if (this.remaining > 0) {
-			IOUtil.trySkip(this.in, this.remaining);
+			IOUtil.skip(this.in, this.remaining);
 		}
 		int crc = IOUtil.readInt(this.in);
 		if (checkCrc && calculatedCrc != crc) {

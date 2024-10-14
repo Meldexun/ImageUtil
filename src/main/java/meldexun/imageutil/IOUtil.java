@@ -22,11 +22,11 @@ public class IOUtil {
 		}
 	}
 
-	public static void readFully(InputStream in, byte b[]) throws IOException {
+	public static void readFully(InputStream in, byte[] b) throws IOException {
 		readFully(in, b, 0, b.length);
 	}
 
-	public static void readFully(InputStream in, byte b[], int off, int len) throws IOException {
+	public static void readFully(InputStream in, byte[] b, int off, int len) throws IOException {
 		if (len < 0)
 			throw new IndexOutOfBoundsException();
 		int n = 0;
@@ -74,18 +74,18 @@ public class IOUtil {
 				| (BUFFER[7] & 0xFFL) << 0;
 	}
 
-	public static void trySkip(InputStream in, long n) throws IOException {
+	public static void skip(InputStream in, long n) throws IOException {
 		while (n > 0) {
 			long skipped = in.skip(n);
 			if (skipped == 0) {
-				skip(in, n);
+				skip0(in, n);
 				break;
 			}
 			n -= skipped;
 		}
 	}
 
-	public static void skip(InputStream in, long n) throws IOException {
+	private static void skip0(InputStream in, long n) throws IOException {
 		while (n > 0) {
 			int skipped = (int) Math.min(n, BUFFER.length);
 			readFully(in, BUFFER, 0, skipped);

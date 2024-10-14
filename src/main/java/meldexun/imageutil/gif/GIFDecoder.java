@@ -70,11 +70,11 @@ public class GIFDecoder {
 					int label = in.readByte();
 					switch (label) {
 					case GRAPHICS_CONTROL_EXTENSION_BLOCK:
-						IOUtil.trySkip(in, 1);
+						IOUtil.skip(in, 1);
 						int gc_packed = in.readByte();
 						int delay = in.readShort();
 						int transparentColorIndex = in.readByte();
-						IOUtil.trySkip(in, 1);
+						IOUtil.skip(in, 1);
 						graphicControl = new CompressedGIF.Frame.GraphicControl(gc_packed, delay, transparentColorIndex);
 						break;
 					case PLAIN_TEXT_EXTENSION_BLOCK:
@@ -155,12 +155,12 @@ public class GIFDecoder {
 	}
 
 	private static void skipPlainTextExtensionBlock(GIFInputStream in) throws IOException {
-		IOUtil.trySkip(in, 13);
+		IOUtil.skip(in, 13);
 		skipSubBlocks(in);
 	}
 
 	private static void skipApplicationExtensionBlock(GIFInputStream in) throws IOException {
-		IOUtil.trySkip(in, 12);
+		IOUtil.skip(in, 12);
 		skipSubBlocks(in);
 	}
 
@@ -171,7 +171,7 @@ public class GIFDecoder {
 	private static void skipSubBlocks(GIFInputStream in) throws IOException {
 		int size;
 		while ((size = in.readByte()) != 0) {
-			IOUtil.trySkip(in, size);
+			IOUtil.skip(in, size);
 		}
 	}
 

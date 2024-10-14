@@ -63,6 +63,7 @@ public class GIFDecoder {
 
 			List<CompressedGIF.Frame> frames = new ArrayList<>();
 			ByteArrayOutputStream data = new ByteArrayOutputStream();
+			byte[] buffer = new byte[8192];
 			GraphicControl graphicControl = null;
 			int separator;
 			while ((separator = in.readByte()) != TRAILER) {
@@ -105,7 +106,7 @@ public class GIFDecoder {
 					data.write(in.readByte());
 					int size;
 					while ((size = in.readByte()) != 0) {
-						IOUtil.copy(in, data, size);
+						IOUtil.copy(in, data, buffer, size);
 					}
 
 					frames.add(new CompressedGIF.Frame(left, top, f_width, f_height, f_packed, localColorTable, data.toByteArray(), graphicControl));

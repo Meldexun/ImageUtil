@@ -11,6 +11,7 @@ import meldexun.imageutil.IOUtil;
 
 class PNGChunkReader extends FilterInputStream {
 
+	private final byte[] buffer = new byte[8];
 	private int type = -1;
 	private int length = -1;
 	private int remaining = -1;
@@ -19,16 +20,20 @@ class PNGChunkReader extends FilterInputStream {
 		super(in);
 	}
 
+	public long readSignature() throws IOException {
+		return IOUtil.readLong(this.in, this.buffer);
+	}
+
 	public int readByte() throws IOException {
 		return IOUtil.readByte(this) & 0xFF;
 	}
 
 	public int readShort() throws IOException {
-		return IOUtil.readShort(this) & 0xFFFF;
+		return IOUtil.readShort(this, this.buffer) & 0xFFFF;
 	}
 
 	public int readInt() throws IOException {
-		int read = IOUtil.readInt(this);
+		int read = IOUtil.readInt(this, this.buffer);
 		if (read < 0) {
 			throw new IIOException("Value is not a PNG int: " + read);
 		}
@@ -86,11 +91,11 @@ class PNGChunkReader extends FilterInputStream {
 		if (this.isChunkOpen()) {
 			throw new IllegalStateException();
 		}
-		this.length = IOUtil.readInt(this.in);
+		this.length = IOUtil.readInt(this.in, this.buffer);
 		if (expectedLength >= 0 && this.length != expectedLength) {
 			throw new IIOException("PNG chunk length mismatch");
 		}
-		this.type = IOUtil.readInt(this.in);
+		this.type = IOUtil.readInt(this.in, this.buffer);
 		if (expectedType >= 0 && this.type != expectedType) {
 			throw new IIOException("PNG chunk type mismatch");
 		}
@@ -108,7 +113,7 @@ class PNGChunkReader extends FilterInputStream {
 		if (this.remaining > 0) {
 			IOUtil.skip(this.in, this.remaining);
 		}
-		int crc = IOUtil.readInt(this.in);
+		int crc = IOUtil.readInt(this.in, this.buffer);
 		if (checkCrc && calculatedCrc != crc) {
 			throw new IIOException("PNG chunk crc mismatch");
 		}

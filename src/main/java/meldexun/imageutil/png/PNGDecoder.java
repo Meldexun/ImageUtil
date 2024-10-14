@@ -40,8 +40,8 @@ public class PNGDecoder {
 	private static final int SCANLINE_PADDING = 8;
 	private static final int SCANLINE_FILTER_INDEX = 7;
 
-	private static void readSignature(InputStream in) throws IOException {
-		if (IOUtil.readLong(in) != SIGNATURE) {
+	private static void readSignature(PNGChunkReader in) throws IOException {
+		if (in.readSignature() != SIGNATURE) {
 			throw new IIOException("Signature does not match");
 		}
 	}
@@ -51,9 +51,9 @@ public class PNGDecoder {
 	}
 
 	public static Image decodeStaticPNG(InputStream input, Color color) throws IOException {
-		readSignature(input);
-
 		try (PNGChunkReader chunkReader = new PNGChunkReader(input)) {
+			readSignature(chunkReader);
+
 			chunkReader.openChunk(CHUNK_IHDR, CHUNK_IHDR_LENGTH);
 			int width = chunkReader.readInt();
 			int height = chunkReader.readInt();
@@ -95,9 +95,9 @@ public class PNGDecoder {
 	}
 
 	public static CompressedAPNG readCompressedAPNG(InputStream input) throws IOException {
-		readSignature(input);
-
 		try (PNGChunkReader chunkReader = new PNGChunkReader(input)) {
+			readSignature(chunkReader);
+
 			chunkReader.openChunk(CHUNK_IHDR, CHUNK_IHDR_LENGTH);
 			int width = chunkReader.readInt();
 			int height = chunkReader.readInt();
@@ -137,6 +137,7 @@ public class PNGDecoder {
 			}
 
 			ByteArrayOutputStream data = new ByteArrayOutputStream();
+			byte[] buffer = new byte[8192];
 			int i = 0;
 			while (chunkReader.findChunk(CHUNK_fcTL, type -> type == CHUNK_IEND)) {
 				int sequence_number = chunkReader.readInt();
@@ -159,7 +160,7 @@ public class PNGDecoder {
 				}
 				data.reset();
 				while (true) {
-					IOUtil.copy(chunkReader, data, chunkReader.remaining());
+					IOUtil.copy(chunkReader, data, buffer, chunkReader.remaining());
 					chunkReader.closeChunk();
 					chunkReader.openChunk();
 					if (chunkReader.type() != CHUNK_IDAT && chunkReader.type() != CHUNK_fdAT) {

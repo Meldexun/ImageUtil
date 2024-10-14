@@ -136,6 +136,7 @@ public class PNGDecoder {
 				}
 			}
 
+			ByteArrayOutputStream data = new ByteArrayOutputStream();
 			int i = 0;
 			while (chunkReader.findChunk(CHUNK_fcTL, type -> type == CHUNK_IEND)) {
 				int sequence_number = chunkReader.readInt();
@@ -156,7 +157,7 @@ public class PNGDecoder {
 				if (chunkReader.type() == CHUNK_fdAT) {
 					chunkReader.readInt();
 				}
-				ByteArrayOutputStream data = new ByteArrayOutputStream();
+				data.reset();
 				while (true) {
 					IOUtil.copy(chunkReader, data, chunkReader.remaining());
 					chunkReader.closeChunk();

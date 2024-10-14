@@ -46,7 +46,7 @@ public class GIFDecoder {
 		}
 	}
 
-	public static CompressedGIF decode(InputStream input) throws IOException {
+	public static CompressedGIF readCompressed(InputStream input) throws IOException {
 		try (GIFInputStream in = new GIFInputStream(input)) {
 			readSignature(in);
 			int version = in.read3Byte();

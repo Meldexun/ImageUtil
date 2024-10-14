@@ -46,11 +46,11 @@ public class PNGDecoder {
 		}
 	}
 
-	public static Image decodeStaticPNG(InputStream input) throws IOException {
-		return decodeStaticPNG(input, Color.RGBA);
+	public static Image decodeStatic(InputStream input) throws IOException {
+		return decodeStatic(input, Color.RGBA);
 	}
 
-	public static Image decodeStaticPNG(InputStream input, Color color) throws IOException {
+	public static Image decodeStatic(InputStream input, Color color) throws IOException {
 		try (PNGChunkReader chunkReader = new PNGChunkReader(input)) {
 			readSignature(chunkReader);
 
@@ -94,7 +94,7 @@ public class PNGDecoder {
 		}
 	}
 
-	public static CompressedAPNG readCompressedAPNG(InputStream input) throws IOException {
+	public static CompressedAPNG readCompressed(InputStream input) throws IOException {
 		try (PNGChunkReader chunkReader = new PNGChunkReader(input)) {
 			readSignature(chunkReader);
 

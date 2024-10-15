@@ -5,6 +5,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.zip.InflaterInputStream;
 
 import javax.imageio.IIOException;
@@ -115,7 +117,7 @@ public class PNGDecoder {
 			if (!chunkReader.findChunk(CHUNK_acTL, type -> type == CHUNK_IDAT || type == CHUNK_IEND)) {
 				return null;
 			}
-			CompressedAPNG.Frame[] frames = new CompressedAPNG.Frame[chunkReader.readInt()];
+			List<CompressedAPNG.Frame> frames = new ArrayList<>(chunkReader.readInt());
 			int plays = chunkReader.readInt();
 			chunkReader.closeChunk();
 
@@ -138,7 +140,6 @@ public class PNGDecoder {
 
 			ByteArrayOutputStream data = new ByteArrayOutputStream();
 			byte[] buffer = new byte[8192];
-			int i = 0;
 			while (chunkReader.findChunk(CHUNK_fcTL, type -> type == CHUNK_IEND)) {
 				int sequence_number = chunkReader.readInt();
 				int f_width = chunkReader.readInt();
@@ -168,7 +169,7 @@ public class PNGDecoder {
 					}
 				}
 
-				frames[i++] = new CompressedAPNG.Frame(f_width, f_height, x_offset, y_offset, delay_num, delay_den, dispose_op, blend_op, data.toByteArray());
+				frames.add(new CompressedAPNG.Frame(f_width, f_height, x_offset, y_offset, delay_num, delay_den, dispose_op, blend_op, data.toByteArray()));
 			}
 
 			return new CompressedAPNG(width, height, colorType, bitDepth, PLTE, tRNS, frames, plays);

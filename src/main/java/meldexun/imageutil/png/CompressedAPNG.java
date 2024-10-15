@@ -1,5 +1,7 @@
 package meldexun.imageutil.png;
 
+import java.util.List;
+
 public class CompressedAPNG {
 
 	public static class Frame {
@@ -34,10 +36,10 @@ public class CompressedAPNG {
 	public final PNGBitDepth bitDepth;
 	public final byte[] PLTE;
 	public final byte[] tRNS;
-	public final Frame[] frames;
+	public final List<Frame> frames;
 	public final int plays;
 
-	public CompressedAPNG(int width, int height, PNGColorType colorType, PNGBitDepth bitDepth, byte[] PLTE, byte[] tRNS, Frame[] frames, int plays) {
+	public CompressedAPNG(int width, int height, PNGColorType colorType, PNGBitDepth bitDepth, byte[] PLTE, byte[] tRNS, List<Frame> frames, int plays) {
 		this.width = width;
 		this.height = height;
 		this.colorType = colorType;

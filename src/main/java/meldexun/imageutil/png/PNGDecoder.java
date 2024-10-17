@@ -2,7 +2,6 @@ package meldexun.imageutil.png;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -91,7 +90,7 @@ public class PNGDecoder {
 				throw new IIOException("Missing IDAT chunk");
 			}
 			UnsafeByteBuffer buffer = UnsafeBufferUtil.allocateByte(width * height * color.bytesPerPixel());
-			decode(chunkReader, PLTE, tRNS, colorType, bitDepth, buffer, color, width, height);
+			decode(chunkReader, PLTE, tRNS, colorType, bitDepth, width, height, buffer, color);
 			return new Image(width, height, color, buffer);
 		}
 	}
@@ -177,27 +176,19 @@ public class PNGDecoder {
 	}
 
 	public static void decodeFrame(CompressedAPNG apng, CompressedAPNG.Frame frame, MemoryAccess dst, Color dstColor) throws IOException {
-		try (DataInputStream in = new DataInputStream(new InflaterInputStream(new ByteArrayInputStream(frame.data)))) {
-			decode(in, apng.PLTE, apng.tRNS, apng.colorType, apng.bitDepth, dst, dstColor, frame.width, frame.height);
+		try (InputStream in = new ByteArrayInputStream(frame.data)) {
+			decode(in, apng.PLTE, apng.tRNS, apng.colorType, apng.bitDepth, frame.width, frame.height, dst, dstColor);
 		}
 	}
 
-	public static void decode(InputStream input, byte[] PLTE, byte[] tRNS, PNGColorType colorType, PNGBitDepth bitDepth, MemoryAccess dst, Color dstColor,
-			int width, int height) throws IOException {
-		try (DataInputStream in = new DataInputStream(new InflaterInputStream(input))) {
-			decode(in, PLTE, tRNS, colorType, bitDepth, dst, dstColor, width, height);
-		}
-	}
-
-	private static void decode(DataInputStream input, byte[] PLTE, byte[] tRNS, PNGColorType colorType, PNGBitDepth bitDepth, MemoryAccess dst, Color dstColor,
-			int width, int height) throws IOException {
-		try (DataInputStream in = input) {
+	public static void decode(InputStream input, byte[] PLTE, byte[] tRNS, PNGColorType colorType, PNGBitDepth bitDepth, int width, int height, MemoryAccess dst, Color dstColor) throws IOException {
+		try (InputStream in = new InflaterInputStream(input)) {
 			int bitsPerPixel = colorType.channels() * bitDepth.value();
 			int bytesPerScanline = (int) Math.ceil((width * bitsPerPixel) / 8.0D) + SCANLINE_PADDING;
 			byte[] scanline = new byte[bytesPerScanline];
 			byte[] prevScanline = new byte[bytesPerScanline];
 			for (int y = 0; y < height; y++) {
-				in.readFully(scanline, SCANLINE_FILTER_INDEX, scanline.length - SCANLINE_FILTER_INDEX);
+				IOUtil.readFully(in, scanline, SCANLINE_FILTER_INDEX, scanline.length - SCANLINE_FILTER_INDEX);
 				unfilter(scanline, prevScanline, bitDepth.value() < 8 ? 1 : bitsPerPixel / 8);
 				colorType.copyPixels(scanline, SCANLINE_PADDING, PLTE, tRNS, bitDepth, dst, y * width * dstColor.bytesPerPixel(), dstColor, width);
 				byte[] tmp = scanline;

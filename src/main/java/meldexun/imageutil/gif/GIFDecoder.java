@@ -2,7 +2,6 @@ package meldexun.imageutil.gif;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -120,20 +119,20 @@ public class GIFDecoder {
 		}
 	}
 
-	public static void decodeFrame(CompressedGIF.Frame frame, byte[] globalColorTable, MemoryAccess dst, long dstOffset, Color dstColor) throws IOException {
-		byte[] colorTable = frame.localColorTable != null ? frame.localColorTable : globalColorTable;
+	public static void decodeFrame(CompressedGIF gif, CompressedGIF.Frame frame, MemoryAccess dst, Color dstColor) throws IOException {
+		byte[] colorTable = frame.localColorTable != null ? frame.localColorTable : gif.globalColorTable;
 		int transparentColorIndex = frame.graphicControl != null ? frame.graphicControl.transparentColorIndex : -1;
-		try (DataInputStream in = new DataInputStream(new LZWInputStream(new ByteArrayInputStream(frame.data)))) {
-			decode(in, colorTable, transparentColorIndex, frame.width, frame.height, dst, dstOffset, dstColor);
+		try (InputStream in = new ByteArrayInputStream(frame.data)) {
+			decode(in, colorTable, transparentColorIndex, frame.width, frame.height, dst, dstColor);
 		}
 	}
 
-	private static void decode(DataInputStream input, byte[] colorTable, int transparentColorIndex, int width, int height, MemoryAccess dst, long dstOffset, Color dstColor) throws IOException {
-		try (DataInputStream in = input) {
+	public static void decode(InputStream input, byte[] colorTable, int transparentColorIndex, int width, int height, MemoryAccess dst, Color dstColor) throws IOException {
+		try (InputStream in = new LZWInputStream(input)) {
 			if (dstColor.hasAlpha()) {
 				for (int y = 0; y < height; y++) {
 					for (int x = 0; x < width; x++) {
-						long o = dstOffset + ((y * width + x) * dstColor.bytesPerPixel());
+						long o = ((y * width + x) * dstColor.bytesPerPixel());
 						int i = IOUtil.read(in);
 						dst.putByte(o + dstColor.redOffset(), colorTable[i * 3 + 0]);
 						dst.putByte(o + dstColor.greenOffset(), colorTable[i * 3 + 1]);
@@ -144,7 +143,7 @@ public class GIFDecoder {
 			} else {
 				for (int y = 0; y < height; y++) {
 					for (int x = 0; x < width; x++) {
-						long o = dstOffset + ((y * width + x) * dstColor.bytesPerPixel());
+						long o = ((y * width + x) * dstColor.bytesPerPixel());
 						int i = IOUtil.read(in);
 						dst.putByte(o + dstColor.redOffset(), colorTable[i * 3 + 0]);
 						dst.putByte(o + dstColor.greenOffset(), colorTable[i * 3 + 1]);

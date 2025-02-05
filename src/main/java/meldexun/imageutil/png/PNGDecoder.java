@@ -114,7 +114,22 @@ public class PNGDecoder {
 			if (interlace != INTERLACE_NO_INTERLACE) throw new IIOException("Unsupported interlace method");
 
 			if (!chunkReader.findChunk(CHUNK_acTL, type -> type == CHUNK_IDAT || type == CHUNK_IEND)) {
-				return null;
+				if (chunkReader.type() != CHUNK_IDAT) {
+					throw new IIOException("Missing IDAT chunk");
+				}
+				ByteArrayOutputStream data = new ByteArrayOutputStream();
+				byte[] buffer = new byte[8192];
+				while (true) {
+					IOUtil.copy(chunkReader, data, buffer, chunkReader.remaining());
+					chunkReader.closeChunk();
+					chunkReader.openChunk();
+					if (chunkReader.type() != CHUNK_IDAT) {
+						break;
+					}
+				}
+				List<CompressedAPNG.Frame> frames = new ArrayList<>(1);
+				frames.add(new CompressedAPNG.Frame(width, height, 0, 0, 1, 30, 0, 0, data.toByteArray()));
+				return new CompressedAPNG(width, height, colorType, bitDepth, null, null, frames, 0);
 			}
 			List<CompressedAPNG.Frame> frames = new ArrayList<>(chunkReader.readInt());
 			int plays = chunkReader.readInt();

@@ -187,9 +187,10 @@ public class PNGDecoder {
 			int bytesPerScanline = (int) Math.ceil((width * bitsPerPixel) / 8.0D) + SCANLINE_PADDING;
 			byte[] scanline = new byte[bytesPerScanline];
 			byte[] prevScanline = new byte[bytesPerScanline];
+			int scanlineOffset = bitDepth.value() < 8 ? 1 : bitsPerPixel / 8;
 			for (int y = 0; y < height; y++) {
 				IOUtil.readFully(in, scanline, SCANLINE_FILTER_INDEX, scanline.length - SCANLINE_FILTER_INDEX);
-				unfilter(scanline, prevScanline, bitDepth.value() < 8 ? 1 : bitsPerPixel / 8);
+				unfilter(scanline, prevScanline, scanlineOffset);
 				colorType.copyPixels(scanline, SCANLINE_PADDING, PLTE, tRNS, bitDepth, dst, y * width * dstColor.bytesPerPixel(), dstColor, width);
 				byte[] tmp = scanline;
 				scanline = prevScanline;

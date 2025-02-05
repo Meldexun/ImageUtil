@@ -128,30 +128,101 @@ public class GIFDecoder {
 	}
 
 	public static void decode(InputStream input, byte[] colorTable, int transparentColorIndex, int width, int height, MemoryAccess dst, Color dstColor) throws IOException {
-		try (InputStream in = new LZWInputStream(input)) {
+		try (InputStream in = input) {
 			if (dstColor.hasAlpha()) {
-				for (int y = 0; y < height; y++) {
-					for (int x = 0; x < width; x++) {
-						long o = ((y * width + x) * dstColor.bytesPerPixel());
-						int i = IOUtil.read(in);
-						dst.putByte(o + dstColor.redOffset(), colorTable[i * 3 + 0]);
-						dst.putByte(o + dstColor.greenOffset(), colorTable[i * 3 + 1]);
-						dst.putByte(o + dstColor.blueOffset(), colorTable[i * 3 + 2]);
-						dst.putByte(o + dstColor.alphaOffset(), i == transparentColorIndex ? 0 : (byte) 255);
-					}
-				}
+				decode(in, (pixelIndex, colorIndex) -> {
+					long pixelOffset = pixelIndex * dstColor.bytesPerPixel();
+					int colorTableIndex = colorIndex * 3;
+					int red = colorTable[colorTableIndex + 0] & 255;
+					int green = colorTable[colorTableIndex + 1] & 255;
+					int blue = colorTable[colorTableIndex + 2] & 255;
+					int alpha = colorIndex == transparentColorIndex ? 0 : 255;
+					dst.putInt(pixelOffset, red << dstColor.redOffset()
+							| green << dstColor.greenOffset()
+							| blue << dstColor.blueOffset()
+							| alpha << dstColor.alphaOffset());
+				});
 			} else {
-				for (int y = 0; y < height; y++) {
-					for (int x = 0; x < width; x++) {
-						long o = ((y * width + x) * dstColor.bytesPerPixel());
-						int i = IOUtil.read(in);
-						dst.putByte(o + dstColor.redOffset(), colorTable[i * 3 + 0]);
-						dst.putByte(o + dstColor.greenOffset(), colorTable[i * 3 + 1]);
-						dst.putByte(o + dstColor.blueOffset(), colorTable[i * 3 + 2]);
-					}
-				}
+				decode(in, (pixelIndex, colorIndex) -> {
+					long pixelOffset = pixelIndex * dstColor.bytesPerPixel();
+					int colorTableIndex = colorIndex * 3;
+					dst.putByte(pixelOffset + dstColor.redOffset(), colorTable[colorTableIndex + 0]);
+					dst.putByte(pixelOffset + dstColor.greenOffset(), colorTable[colorTableIndex + 1]);
+					dst.putByte(pixelOffset + dstColor.blueOffset(), colorTable[colorTableIndex + 2]);
+				});
 			}
 		}
+	}
+
+	private static void decode(InputStream input, PixelReader pixelReader) throws IOException {
+		long pixelIndex = 0;
+
+		try (BitInputStream bitInput = new BitInputStream(input)) {
+			final int minBitsPerCode = input.read();
+			final int clearCode = 1 << minBitsPerCode;
+			final int eofCode = (1 << minBitsPerCode) + 1;
+
+			int[] previous = new int[4096];
+			int[] firstValue = new int[4096];
+			int[] value = new int[4096];
+			int[] size = new int[4096];
+			for (int i = 0; i < (1 << minBitsPerCode) + 2; i++) {
+				previous[i] = -1;
+				firstValue[i] = value[i] = i;
+				size[i] = 1;
+			}
+			int tableSize = (1 << minBitsPerCode) + 2;
+			int bitsPerCode = minBitsPerCode + 1;
+			int prevCode = -1;
+
+			while (true) {
+				int code = bitInput.read(bitsPerCode);
+				if (code == eofCode) {
+					break;
+				}
+				if (code == clearCode) {
+					tableSize = (1 << minBitsPerCode) + 2;
+					bitsPerCode = minBitsPerCode + 1;
+					prevCode = -1;
+					continue;
+				}
+				int suffix;
+				if (code < tableSize) {
+					suffix = firstValue[code];
+				} else if (code == tableSize) {
+					if (prevCode < 0) {
+						throw new IOException("Illegal previous code");
+					}
+					suffix = firstValue[prevCode];
+				} else {
+					throw new IOException("Illegal code " + code);
+				}
+				if (prevCode >= 0 && tableSize < 4096) {
+					previous[tableSize] = prevCode;
+					firstValue[tableSize] = firstValue[prevCode];
+					value[tableSize] = suffix;
+					size[tableSize] = size[prevCode] + 1;
+					tableSize++;
+					if (tableSize == 1 << bitsPerCode && tableSize < 4096) {
+						bitsPerCode++;
+					}
+				}
+				int c = code;
+				int s = size[c];
+				for (int j = s - 1; j >= 0; j--) {
+					pixelReader.accept(pixelIndex + j, value[c]);
+					c = previous[c];
+				}
+				pixelIndex += s;
+				prevCode = code;
+			}
+		}
+	}
+
+	private interface PixelReader {
+
+		void accept(long pixelIndex, int colorIndex);
+
 	}
 
 	private static void skipPlainTextExtensionBlock(GIFInputStream in) throws IOException {

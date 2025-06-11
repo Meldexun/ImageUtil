@@ -46,6 +46,15 @@ enum PNGColorType {
 		protected byte alpha(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, int x) {
 			return (byte) 255;
 		}
+
+		@Override
+		public void copyPixels(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset, Color dstColor, int width) {
+			if (dstColor == Color.RGB) {
+				MemoryAccess.copyMemory(MemoryAccess.of(scanline), scanlineOffset, dst, dstOffset, width * dstColor.bytesPerPixel());
+			} else {
+				super.copyPixels(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, width);
+			}
+		}
 	},
 	INDEXED_COLOR(3, 1) {
 		@Override
@@ -116,6 +125,15 @@ enum PNGColorType {
 		protected byte alpha(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, int x) {
 			return bitDepth.getByte(scanline, scanlineOffset, x, 3, this.channels);
 		}
+
+		@Override
+		public void copyPixels(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset, Color dstColor, int width) {
+			if (dstColor == Color.RGBA) {
+				MemoryAccess.copyMemory(MemoryAccess.of(scanline), scanlineOffset, dst, dstOffset, width * dstColor.bytesPerPixel());
+			} else {
+				super.copyPixels(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, width);
+			}
+		}
 	};
 
 	private final int index;
@@ -153,14 +171,6 @@ enum PNGColorType {
 
 	public void copyPixels(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset,
 			Color dstColor, int width) {
-		if (this == TRUECOLOR_ALPHA && dstColor == Color.RGBA) {
-			MemoryAccess.copyMemory(MemoryAccess.of(scanline), scanlineOffset, dst, dstOffset, width * dstColor.bytesPerPixel());
-			return;
-		}
-		if (this == TRUECOLOR && dstColor == Color.RGB) {
-			MemoryAccess.copyMemory(MemoryAccess.of(scanline), scanlineOffset, dst, dstOffset, width * dstColor.bytesPerPixel());
-			return;
-		}
 		if (dstColor.hasAlpha()) {
 			this.copyPixelsRGBA(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, width);
 		} else {

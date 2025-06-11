@@ -173,11 +173,11 @@ public class PNGDecoder {
 				if (!chunkReader.findChunk(type -> type == CHUNK_IDAT || type == CHUNK_fdAT, type -> type == CHUNK_IEND)) {
 					throw new IIOException("Missing IDAT/fdAT chunk");
 				}
-				if (chunkReader.type() == CHUNK_fdAT) {
-					chunkReader.readInt();
-				}
 				data.reset();
 				while (true) {
+					if (chunkReader.type() == CHUNK_fdAT) {
+						chunkReader.readInt();
+					}
 					IOUtil.copy(chunkReader, data, buffer, chunkReader.remaining());
 					chunkReader.closeChunk();
 					chunkReader.openChunk();

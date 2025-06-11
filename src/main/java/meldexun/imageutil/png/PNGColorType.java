@@ -48,11 +48,11 @@ enum PNGColorType {
 		}
 
 		@Override
-		public void copyPixels(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset, Color dstColor, int width) {
-			if (dstColor == Color.RGB) {
-				MemoryAccess.copyMemory(MemoryAccess.of(scanline), scanlineOffset, dst, dstOffset, width * dstColor.bytesPerPixel());
+		public void copyPixels(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset, Color dstColor, int offsetX, int strideX, int width) {
+			if (dstColor == Color.RGB && strideX == 1) {
+				MemoryAccess.copyMemory(MemoryAccess.of(scanline), scanlineOffset, dst, dstOffset + offsetX * dstColor.bytesPerPixel(), width * dstColor.bytesPerPixel());
 			} else {
-				super.copyPixels(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, width);
+				super.copyPixels(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, offsetX, strideX, width);
 			}
 		}
 	},
@@ -127,11 +127,11 @@ enum PNGColorType {
 		}
 
 		@Override
-		public void copyPixels(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset, Color dstColor, int width) {
-			if (dstColor == Color.RGBA) {
-				MemoryAccess.copyMemory(MemoryAccess.of(scanline), scanlineOffset, dst, dstOffset, width * dstColor.bytesPerPixel());
+		public void copyPixels(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset, Color dstColor, int offsetX, int strideX, int width) {
+			if (dstColor == Color.RGBA && strideX == 1) {
+				MemoryAccess.copyMemory(MemoryAccess.of(scanline), scanlineOffset, dst, dstOffset + offsetX * dstColor.bytesPerPixel(), width * dstColor.bytesPerPixel());
 			} else {
-				super.copyPixels(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, width);
+				super.copyPixels(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, offsetX, strideX, width);
 			}
 		}
 	};
@@ -170,30 +170,30 @@ enum PNGColorType {
 	}
 
 	public void copyPixels(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset,
-			Color dstColor, int width) {
+			Color dstColor, int offsetX, int strideX, int width) {
 		if (dstColor.hasAlpha()) {
-			this.copyPixelsRGBA(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, width);
+			this.copyPixelsRGBA(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, offsetX, strideX, width);
 		} else {
-			this.copyPixelsRGB(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, width);
+			this.copyPixelsRGB(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, offsetX, strideX, width);
 		}
 	}
 
 	private void copyPixelsRGBA(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset,
-			Color dstColor, int width) {
+			Color dstColor, int offsetX, int strideX, int width) {
 		for (int x = 0; x < width; x++) {
-			dst.putByte(dstOffset + x * dstColor.bytesPerPixel() + dstColor.redOffset(), this.red(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
-			dst.putByte(dstOffset + x * dstColor.bytesPerPixel() + dstColor.greenOffset(), this.green(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
-			dst.putByte(dstOffset + x * dstColor.bytesPerPixel() + dstColor.blueOffset(), this.blue(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
-			dst.putByte(dstOffset + x * dstColor.bytesPerPixel() + dstColor.alphaOffset(), this.alpha(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
+			dst.putByte(dstOffset + (x * strideX + offsetX) * dstColor.bytesPerPixel() + dstColor.redOffset(), this.red(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
+			dst.putByte(dstOffset + (x * strideX + offsetX) * dstColor.bytesPerPixel() + dstColor.greenOffset(), this.green(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
+			dst.putByte(dstOffset + (x * strideX + offsetX) * dstColor.bytesPerPixel() + dstColor.blueOffset(), this.blue(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
+			dst.putByte(dstOffset + (x * strideX + offsetX) * dstColor.bytesPerPixel() + dstColor.alphaOffset(), this.alpha(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
 		}
 	}
 
 	private void copyPixelsRGB(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset,
-			Color dstColor, int width) {
+			Color dstColor, int offsetX, int strideX, int width) {
 		for (int x = 0; x < width; x++) {
-			dst.putByte(dstOffset + x * dstColor.bytesPerPixel() + dstColor.redOffset(), this.red(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
-			dst.putByte(dstOffset + x * dstColor.bytesPerPixel() + dstColor.greenOffset(), this.green(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
-			dst.putByte(dstOffset + x * dstColor.bytesPerPixel() + dstColor.blueOffset(), this.blue(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
+			dst.putByte(dstOffset + (x * strideX + offsetX) * dstColor.bytesPerPixel() + dstColor.redOffset(), this.red(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
+			dst.putByte(dstOffset + (x * strideX + offsetX) * dstColor.bytesPerPixel() + dstColor.greenOffset(), this.green(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
+			dst.putByte(dstOffset + (x * strideX + offsetX) * dstColor.bytesPerPixel() + dstColor.blueOffset(), this.blue(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
 		}
 	}
 

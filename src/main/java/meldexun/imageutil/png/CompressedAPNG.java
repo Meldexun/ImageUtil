@@ -34,16 +34,18 @@ public class CompressedAPNG {
 	public final int height;
 	public final PNGColorType colorType;
 	public final PNGBitDepth bitDepth;
+	public final int interlace;
 	public final byte[] PLTE;
 	public final byte[] tRNS;
 	public final List<Frame> frames;
 	public final int plays;
 
-	public CompressedAPNG(int width, int height, PNGColorType colorType, PNGBitDepth bitDepth, byte[] PLTE, byte[] tRNS, List<Frame> frames, int plays) {
+	public CompressedAPNG(int width, int height, PNGColorType colorType, PNGBitDepth bitDepth, int interlace, byte[] PLTE, byte[] tRNS, List<Frame> frames, int plays) {
 		this.width = width;
 		this.height = height;
 		this.colorType = colorType;
 		this.bitDepth = bitDepth;
+		this.interlace = interlace;
 		this.PLTE = PLTE;
 		this.tRNS = tRNS;
 		this.frames = frames;

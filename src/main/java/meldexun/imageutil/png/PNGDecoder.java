@@ -37,6 +37,10 @@ public class PNGDecoder {
 	private static final int FILTER_DEFAULT = 0;
 	private static final int INTERLACE_NO_INTERLACE = 0;
 	private static final int INTERLACE_ADAM7_INTERLACE = 1;
+	private static final int[] ADAM7_X_OFFSETS = { 0, 4, 0, 2, 0, 1, 0 };
+	private static final int[] ADAM7_Y_OFFSETS = { 0, 0, 4, 0, 2, 0, 1 };
+	private static final int[] ADAM7_X_STRIDES = { 8, 8, 4, 4, 2, 2, 1 };
+	private static final int[] ADAM7_Y_STRIDES = { 8, 8, 8, 4, 4, 2, 2 };
 
 	private static final int SCANLINE_PADDING = 8;
 	private static final int SCANLINE_FILTER_INDEX = 7;
@@ -67,7 +71,7 @@ public class PNGDecoder {
 
 			if (compression != COMPRESSION_DEFLATE) throw new IIOException("Unsupported compression method");
 			if (filter != FILTER_DEFAULT) throw new IIOException("Unsupported filter method");
-			if (interlace != INTERLACE_NO_INTERLACE) throw new IIOException("Unsupported interlace method");
+			if (interlace != INTERLACE_NO_INTERLACE && interlace != INTERLACE_ADAM7_INTERLACE) throw new IIOException("Unsupported interlace method");
 
 			byte[] PLTE = null;
 			byte[] tRNS = null;
@@ -90,7 +94,7 @@ public class PNGDecoder {
 				throw new IIOException("Missing IDAT chunk");
 			}
 			UnsafeByteBuffer buffer = UnsafeBufferUtil.allocateByte(width * height * color.bytesPerPixel());
-			decode(chunkReader, PLTE, tRNS, colorType, bitDepth, width, height, buffer, color);
+			decode(chunkReader, interlace, PLTE, tRNS, colorType, bitDepth, width, height, buffer, color);
 			return new Image(width, height, color, buffer);
 		}
 	}
@@ -111,7 +115,7 @@ public class PNGDecoder {
 
 			if (compression != COMPRESSION_DEFLATE) throw new IIOException("Unsupported compression method");
 			if (filter != FILTER_DEFAULT) throw new IIOException("Unsupported filter method");
-			if (interlace != INTERLACE_NO_INTERLACE) throw new IIOException("Unsupported interlace method");
+			if (interlace != INTERLACE_NO_INTERLACE && interlace != INTERLACE_ADAM7_INTERLACE) throw new IIOException("Unsupported interlace method");
 
 			if (!chunkReader.findChunk(CHUNK_acTL, type -> type == CHUNK_IDAT || type == CHUNK_IEND)) {
 				if (chunkReader.type() != CHUNK_IDAT) {
@@ -129,7 +133,7 @@ public class PNGDecoder {
 				}
 				List<CompressedAPNG.Frame> frames = new ArrayList<>(1);
 				frames.add(new CompressedAPNG.Frame(width, height, 0, 0, 1, 30, 0, 0, data.toByteArray()));
-				return new CompressedAPNG(width, height, colorType, bitDepth, null, null, frames, 0);
+				return new CompressedAPNG(width, height, colorType, bitDepth, interlace, null, null, frames, 0);
 			}
 			List<CompressedAPNG.Frame> frames = new ArrayList<>(chunkReader.readInt());
 			int plays = chunkReader.readInt();
@@ -185,77 +189,100 @@ public class PNGDecoder {
 				frames.add(new CompressedAPNG.Frame(f_width, f_height, x_offset, y_offset, delay_num, delay_den, dispose_op, blend_op, data.toByteArray()));
 			}
 
-			return new CompressedAPNG(width, height, colorType, bitDepth, PLTE, tRNS, frames, plays);
+			return new CompressedAPNG(width, height, colorType, bitDepth, interlace, PLTE, tRNS, frames, plays);
 		}
 	}
 
 	public static void decodeFrame(CompressedAPNG apng, CompressedAPNG.Frame frame, MemoryAccess dst, Color dstColor) throws IOException {
 		try (InputStream in = new ByteArrayInputStream(frame.data)) {
-			decode(in, apng.PLTE, apng.tRNS, apng.colorType, apng.bitDepth, frame.width, frame.height, dst, dstColor);
+			decode(in, apng.interlace, apng.PLTE, apng.tRNS, apng.colorType, apng.bitDepth, frame.width, frame.height, dst, dstColor);
 		}
 	}
 
-	public static void decode(InputStream input, byte[] PLTE, byte[] tRNS, PNGColorType colorType, PNGBitDepth bitDepth, int width, int height, MemoryAccess dst, Color dstColor) throws IOException {
+	public static void decode(InputStream input, int interlace, byte[] PLTE, byte[] tRNS, PNGColorType colorType, PNGBitDepth bitDepth, int width, int height, MemoryAccess dst, Color dstColor) throws IOException {
 		try (InputStream in = new InflaterInputStream(input)) {
 			int bitsPerPixel = colorType.channels() * bitDepth.value();
-			int bytesPerScanline = (int) Math.ceil((width * bitsPerPixel) / 8.0D) + SCANLINE_PADDING;
-			byte[] scanline = new byte[bytesPerScanline];
-			byte[] prevScanline = new byte[bytesPerScanline];
-			int scanlineOffset = bitDepth.value() < 8 ? 1 : bitsPerPixel / 8;
-			for (int y = 0; y < height; y++) {
-				IOUtil.readFully(in, scanline, SCANLINE_FILTER_INDEX, scanline.length - SCANLINE_FILTER_INDEX);
-				unfilter(scanline, prevScanline, scanlineOffset);
-				colorType.copyPixels(scanline, SCANLINE_PADDING, PLTE, tRNS, bitDepth, dst, y * width * dstColor.bytesPerPixel(), dstColor, width);
-				byte[] tmp = scanline;
-				scanline = prevScanline;
-				prevScanline = tmp;
+			byte[] scanline = new byte[(int) Math.ceil((double) (width * bitsPerPixel) / Byte.SIZE) + SCANLINE_PADDING];
+			byte[] prevScanline = new byte[scanline.length];
+			int scanlineOffset = bitDepth.value() < Byte.SIZE ? 1 : bitsPerPixel / Byte.SIZE;
+			for (int pass = 0; pass < (interlace == INTERLACE_ADAM7_INTERLACE ? 7 : 1); pass++) {
+				int offsetX;
+				int offsetY;
+				int strideX;
+				int strideY;
+				int pixelsPerScanline;
+				int scanlinesPerPass;
+				if (interlace == INTERLACE_ADAM7_INTERLACE) {
+					offsetX = ADAM7_X_OFFSETS[pass];
+					offsetY = ADAM7_Y_OFFSETS[pass];
+					strideX = ADAM7_X_STRIDES[pass];
+					strideY = ADAM7_Y_STRIDES[pass];
+					pixelsPerScanline = width / strideX + (offsetX > 0 && width % strideX >= offsetX ? 1 : 0);
+					scanlinesPerPass = height / strideY + (offsetY > 0 && height % strideY >= offsetY ? 1 : 0);
+				} else {
+					offsetX = 0;
+					offsetY = 0;
+					strideX = 1;
+					strideY = 1;
+					pixelsPerScanline = width;
+					scanlinesPerPass = height;
+				}
+				int bytesPerScanline = (int) Math.ceil((double) (pixelsPerScanline * bitsPerPixel) / Byte.SIZE);
+				for (int y = 0; y < scanlinesPerPass; y++) {
+					IOUtil.readFully(in, scanline, SCANLINE_FILTER_INDEX, bytesPerScanline + 1);
+					unfilter(scanline, prevScanline, scanlineOffset, bytesPerScanline + SCANLINE_PADDING);
+					colorType.copyPixels(scanline, SCANLINE_PADDING, PLTE, tRNS, bitDepth, dst, (y * strideY + offsetY) * width * dstColor.bytesPerPixel(), dstColor, offsetX, strideX, pixelsPerScanline);
+					byte[] tmp = scanline;
+					scanline = prevScanline;
+					prevScanline = tmp;
+				}
 			}
 		}
 	}
 
-	private static void unfilter(byte[] scanline, byte[] prevScanline, int offset) {
+	private static void unfilter(byte[] scanline, byte[] prevScanline, int offset, int length) {
 		byte filterType = scanline[SCANLINE_FILTER_INDEX];
 		scanline[SCANLINE_FILTER_INDEX] = 0;
 		switch (filterType) {
 		case 0:
 			break;
 		case 1:
-			unfilterSub(scanline, offset);
+			unfilterSub(scanline, offset, length);
 			break;
 		case 2:
-			unfilterUp(scanline, prevScanline);
+			unfilterUp(scanline, prevScanline, length);
 			break;
 		case 3:
-			unfilterAverage(scanline, prevScanline, offset);
+			unfilterAverage(scanline, prevScanline, offset, length);
 			break;
 		case 4:
-			unfilterPaeth(scanline, prevScanline, offset);
+			unfilterPaeth(scanline, prevScanline, offset, length);
 			break;
 		default:
-			throw new IllegalArgumentException();
+			throw new IllegalArgumentException("Unsupported filter type");
 		}
 	}
 
-	private static void unfilterSub(byte[] scanline, int offset) {
-		for (int i = SCANLINE_PADDING; i < scanline.length; i++) {
+	private static void unfilterSub(byte[] scanline, int offset, int length) {
+		for (int i = SCANLINE_PADDING; i < length; i++) {
 			scanline[i] += scanline[i - offset];
 		}
 	}
 
-	private static void unfilterUp(byte[] scanline, byte[] prevScanline) {
-		for (int i = SCANLINE_PADDING; i < scanline.length; i++) {
+	private static void unfilterUp(byte[] scanline, byte[] prevScanline, int length) {
+		for (int i = SCANLINE_PADDING; i < length; i++) {
 			scanline[i] += prevScanline[i];
 		}
 	}
 
-	private static void unfilterAverage(byte[] scanline, byte[] prevScanline, int offset) {
-		for (int i = SCANLINE_PADDING; i < scanline.length; i++) {
+	private static void unfilterAverage(byte[] scanline, byte[] prevScanline, int offset, int length) {
+		for (int i = SCANLINE_PADDING; i < length; i++) {
 			scanline[i] += average(scanline[i - offset], prevScanline[i]);
 		}
 	}
 
-	private static void unfilterPaeth(byte[] scanline, byte[] prevScanline, int offset) {
-		for (int i = SCANLINE_PADDING; i < scanline.length; i++) {
+	private static void unfilterPaeth(byte[] scanline, byte[] prevScanline, int offset, int length) {
+		for (int i = SCANLINE_PADDING; i < length; i++) {
 			scanline[i] += paethPredictor(scanline[i - offset], prevScanline[i], prevScanline[i - offset]);
 		}
 	}

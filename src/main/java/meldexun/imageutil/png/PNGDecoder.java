@@ -166,8 +166,7 @@ public class PNGDecoder {
 				int blend_op = chunkReader.readByte();
 				chunkReader.closeChunk();
 
-				chunkReader.openChunk();
-				if (chunkReader.type() != CHUNK_IDAT && chunkReader.type() != CHUNK_fdAT) {
+				if (!chunkReader.findChunk(type -> type == CHUNK_IDAT || type == CHUNK_fdAT, type -> type == CHUNK_IEND)) {
 					throw new IIOException("Missing IDAT/fdAT chunk");
 				}
 				if (chunkReader.type() == CHUNK_fdAT) {

@@ -123,11 +123,15 @@ class PNGChunkReader extends FilterInputStream {
 	}
 
 	public boolean findChunk(int type, IntPredicate failCondition) throws IOException {
+		return findChunk(type1 -> type1 == type, failCondition);
+	}
+
+	public boolean findChunk(IntPredicate typeCondition, IntPredicate failCondition) throws IOException {
 		if (!this.isChunkOpen()) {
 			this.openChunk();
 		}
 		while (true) {
-			if (this.type == type) {
+			if (typeCondition.test(this.type)) {
 				return true;
 			}
 			if (failCondition != null && failCondition.test(this.type)) {

@@ -169,8 +169,7 @@ enum PNGColorType {
 		return this.channels;
 	}
 
-	public void copyPixels(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset,
-			Color dstColor, int offsetX, int strideX, int width) {
+	public void copyPixels(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset, Color dstColor, int offsetX, int strideX, int width) {
 		if (dstColor.hasAlpha()) {
 			this.copyPixelsRGBA(scanline, scanlineOffset, PLTE, tRNS, bitDepth, dst, dstOffset, dstColor, offsetX, strideX, width);
 		} else {
@@ -178,8 +177,7 @@ enum PNGColorType {
 		}
 	}
 
-	private void copyPixelsRGBA(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset,
-			Color dstColor, int offsetX, int strideX, int width) {
+	private void copyPixelsRGBA(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset, Color dstColor, int offsetX, int strideX, int width) {
 		for (int x = 0; x < width; x++) {
 			dst.putByte(dstOffset + (x * strideX + offsetX) * dstColor.bytesPerPixel() + dstColor.redOffset(), this.red(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
 			dst.putByte(dstOffset + (x * strideX + offsetX) * dstColor.bytesPerPixel() + dstColor.greenOffset(), this.green(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
@@ -188,8 +186,7 @@ enum PNGColorType {
 		}
 	}
 
-	private void copyPixelsRGB(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset,
-			Color dstColor, int offsetX, int strideX, int width) {
+	private void copyPixelsRGB(byte[] scanline, int scanlineOffset, byte[] PLTE, byte[] tRNS, PNGBitDepth bitDepth, MemoryAccess dst, long dstOffset, Color dstColor, int offsetX, int strideX, int width) {
 		for (int x = 0; x < width; x++) {
 			dst.putByte(dstOffset + (x * strideX + offsetX) * dstColor.bytesPerPixel() + dstColor.redOffset(), this.red(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
 			dst.putByte(dstOffset + (x * strideX + offsetX) * dstColor.bytesPerPixel() + dstColor.greenOffset(), this.green(scanline, scanlineOffset, PLTE, tRNS, bitDepth, x));
